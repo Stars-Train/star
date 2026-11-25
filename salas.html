@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Salas — RPG</title>
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+<link rel="stylesheet" href="login.css">
+<script src="sala.js"></script>
+</head>
+<body>
+<div class="login-box">
+  <div class="login-icon">⚔</div>
+  <h1>Salas de RPG</h1>
+
+  <div class="tabs">
+    <button id="tabEntrar" class="on" onclick="aba('entrar')">Entrar</button>
+    <button id="tabCriar" onclick="aba('criar')">Criar sala</button>
+  </div>
+
+  <!-- ENTRAR -->
+  <div class="painel on" id="pEntrar">
+    <input type="text" id="codEntrar" placeholder="Código da sala" autocomplete="off" maxlength="12" style="text-transform:uppercase;letter-spacing:3px;text-align:center">
+    <button onclick="entrar()">Entrar na sala</button>
+  </div>
+
+  <!-- CRIAR -->
+  <div class="painel" id="pCriar">
+    <input type="text" id="nomeSala" placeholder="Nome do RPG / da sala" maxlength="40" autocomplete="off">
+    <input type="text" id="codCriar" placeholder="Código (opcional — deixe vazio para gerar)" maxlength="12" autocomplete="off" style="text-transform:uppercase">
+    <div class="hint">4 a 12 letras/números. É o código que seus jogadores vão digitar.</div>
+    <input type="text" id="senhaMestre" placeholder="Senha do mestre" autocomplete="off">
+    <label class="check"><input type="checkbox" id="usaClasses"> <span>Usar o sistema de classes do Path of Stars (classes e multiclasses automáticas na ficha)</span></label>
+    <button onclick="criar()">Criar sala</button>
+  </div>
+
+  <!-- SALA CRIADA -->
+  <div class="painel" id="pCriada">
+    <div class="ok">Sala criada! Passe este código aos jogadores:</div>
+    <div class="codigo-grande" id="codigoCriado"></div>
+    <div class="hint" style="text-align:center">Entre com o usuário <b>mestre</b> e a senha que você definiu. Os jogadores você cadastra depois, na aba ⚙ Usuários.</div>
+    <button class="sec" onclick="copiarCodigo()">Copiar código</button>
+    <button onclick="irLogin()">Ir para o login</button>
+  </div>
+
+  <div id="erro" class="erro"></div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, get, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCEiRmGP4wGrfDwbbIadvrt1Ik56ecbKYk",
+  authDomain: "path-of-stars.firebaseapp.com",
+  databaseURL: "https://path-of-stars-default-rtdb.firebaseio.com",
+  projectId: "path-of-stars",
+  storageBucket: "path-of-stars.firebasestorage.app",
+  messagingSenderId: "565088659888",
+  appId: "1:565088659888:web:8ee544001aee376e9f0e75"
+};
+const db = getDatabase(initializeApp(firebaseConfig));
+const $ = id => document.getElementById(id);
+const LEG = window.SALA_LEGADA;
+let salaCriada = null;
+
+const limpaCodigo = s => String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+const erro = (m, ok) => { const e = $('erro'); e.textContent = m || ''; e.style.color = ok ? '#7fd18b' : ''; };
+
+// código lembrado da última vez
+try {
+  const ult = JSON.parse(localStorage.getItem('ultimaSala') || 'null');
+  if (ult && ult.codigo) $('codEntrar').value = ult.codigo;
+} catch (e) {}
+
+window.aba = nome => {
+  erro('');
+  $('tabEntrar').classList.toggle('on', nome === 'entrar');
+  $('tabCriar').classList.toggle('on', nome === 'criar');
+  $('pEntrar').classList.toggle('on', nome === 'entrar');
+  $('pCriar').classList.toggle('on', nome === 'criar');
+  $('pCriada').classList.remove('on');
+};
+
+function irParaLogin(sala) {
+  // trocar de sala exige novo login
+  ['logado', 'tipo', 'usuario'].forEach(k => sessionStorage.removeItem(k));
+  sessionStorage.setItem('sala', JSON.stringify(sala));
+  localStorage.setItem('ultimaSala', JSON.stringify(sala));
+  location.href = 'login.html';
+}
+
+window.entrar = async () => {
+  const codigo = limpaCodigo($('codEntrar').value);
+  if (!codigo) { erro('Digite o código da sala.'); return; }
+  erro('Procurando sala...', true);
+  try {
+    if (codigo === LEG.codigo) { irParaLogin(LEG); return; }
+    const snap = await get(ref(db, 'salas/' + codigo + '/info'));
+    if (!snap.exists()) { erro('Sala não encontrada. Confira o código.'); return; }
+    const info = snap.val();
+    irParaLogin({ codigo, nome: info.nome || codigo, legado: false, classes: !!info.classes });
+  } catch (e) {
+    erro('Erro de conexão. Tente novamente.');
+  }
+};
+
+const ALFABETO = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const gerarCodigo = () => Array.from({ length: 6 }, () => ALFABETO[Math.floor(Math.random() * ALFABETO.length)]).join('');
+
+window.criar = async () => {
+  const nome = $('nomeSala').value.trim();
+  const senha = $('senhaMestre').value.trim();
+  let codigo = limpaCodigo($('codCriar').value);
+  if (nome.length < 2) { erro('Dê um nome para a sala.'); return; }
+  if (senha.length < 3) { erro('A senha do mestre precisa de pelo menos 3 caracteres.'); return; }
+  if (codigo && (codigo.length < 4 || codigo.length > 12)) { erro('O código precisa ter de 4 a 12 letras/números.'); return; }
+  if (codigo === LEG.codigo) { erro('Esse código já está em uso.'); return; }
+  erro('Criando sala...', true);
+  try {
+    if (codigo) {
+      const ex = await get(ref(db, 'salas/' + codigo + '/info'));
+      if (ex.exists()) { erro('Esse código já está em uso. Escolha outro.'); return; }
+    } else {
+      for (let i = 0; i < 8 && !codigo; i++) {
+        const c = gerarCodigo();
+        if (c === LEG.codigo) continue;
+        const ex = await get(ref(db, 'salas/' + c + '/info'));
+        if (!ex.exists()) codigo = c;
+      }
+      if (!codigo) { erro('Não consegui gerar um código livre. Tente de novo.'); return; }
+    }
+    const classes = $('usaClasses').checked;
+    await set(ref(db, 'salas/' + codigo), {
+      info: { nome, criado: Date.now(), classes },
+      dados: { usuarios: { mestre: { usuario: 'mestre', senha, tipo: 'mestre' } } }
+    });
+    salaCriada = { codigo, nome, legado: false, classes };
+    $('codigoCriado').textContent = codigo;
+    $('pCriar').classList.remove('on');
+    $('pCriada').classList.add('on');
+    erro('');
+  } catch (e) {
+    erro('Erro ao criar a sala. Verifique a conexão e as regras do Firebase.');
+  }
+};
+
+window.copiarCodigo = () => {
+  if (!salaCriada) return;
+  navigator.clipboard?.writeText(salaCriada.codigo).then(() => erro('Código copiado!', true));
+};
+window.irLogin = () => { if (salaCriada) irParaLogin(salaCriada); };
+
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  if ($('pEntrar').classList.contains('on')) window.entrar();
+});
+</script>
+</body>
+</html>

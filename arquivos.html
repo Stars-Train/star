@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<script src="sala.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Arquivos — RPG</title>
+<!-- Verificação de sessão imediata -->
+<script>
+  if (!sessionStorage.getItem("logado")) { window.location.replace("login.html"); }
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0a0a0a; --bg2: #111111; --bg3: #161616;
+    --border: #2a2a2a; --border2: #444444;
+    --gold: #cccccc; --gold2: #333333; --gold-dim: #888888;
+    --text: #ffffff; --text2: #777777; --text3: #cccccc;
+    --red: #555555; --red2: #999999; --radius: 6px;
+    --accent: #3a3a3a;
+  }
+  body { font-family: 'Crimson Text', Georgia, serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 16px; line-height: 1.5; overflow-x: hidden; }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg2); }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+  input, textarea, select {
+    font-family: 'Crimson Text', Georgia, serif; font-size: 15px; color: var(--text);
+    background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 6px 10px; width: 100%; transition: border-color 0.2s;
+  }
+  input:focus, textarea:focus, select:focus { outline: none; border-color: var(--border2); background: var(--bg3); }
+  select option { background: var(--bg2); }
+
+  button {
+    font-family: 'Crimson Text', Georgia, serif; cursor: pointer; border-radius: var(--radius);
+    border: 1px solid var(--border2); background: transparent; color: var(--text2);
+    padding: 7px 14px; font-size: 14px; transition: all 0.18s;
+  }
+  button:hover { background: var(--bg3); color: var(--gold); border-color: var(--gold-dim); }
+  button:active { transform: scale(0.97); }
+  .btn-primary { background: var(--bg3); border-color: var(--gold-dim); color: var(--gold); font-family: 'Cinzel', serif; font-size: 12px; letter-spacing: 0.5px; }
+  .btn-primary:hover { background: var(--accent); border-color: var(--gold); }
+  .btn-icon { padding: 5px 9px; font-size: 15px; min-width: 32px; display: inline-flex; align-items: center; justify-content: center; }
+  .btn-danger { color: var(--red2); border-color: transparent; }
+  .btn-danger:hover { background: rgba(180,60,60,0.12); border-color: #884444; color: #e06060; }
+  .btn-logout { background: transparent; border-color: var(--border); color: var(--text3); font-size: 12px; padding: 5px 10px; }
+  .btn-logout:hover { color: var(--red2); border-color: var(--red); }
+
+  /* ── LAYOUT ── */
+  .wrap { max-width: 760px; margin: 0 auto; padding: 1.5rem; }
+  .page-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 1.5rem; padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border); gap: 10px; flex-wrap: wrap;
+  }
+  .page-title { font-family: 'Cinzel', serif; font-size: 20px; color: var(--gold); letter-spacing: 1px; }
+  .header-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+  /* ── GRUPOS ── */
+  .grupos-wrap { display: flex; flex-direction: column; gap: 12px; }
+  .grupo-block { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .grupo-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px; border-bottom: 1px solid var(--border);
+    background: var(--bg3); cursor: pointer; gap: 8px;
+  }
+  .grupo-header:hover { border-color: var(--border2); }
+  .grupo-titulo { font-family: 'Cinzel', serif; font-size: 13px; color: var(--gold-dim); letter-spacing: 0.6px; }
+  .grupo-count { font-size: 12px; color: var(--text2); font-style: italic; }
+  .grupo-actions { display: flex; gap: 4px; }
+  .grupo-chevron { font-size: 11px; color: var(--text2); transition: transform 0.2s; margin-left: 4px; }
+  .grupo-chevron.open { transform: rotate(180deg); }
+  .grupo-body { display: none; padding: 10px; }
+  .grupo-body.open { display: block; }
+
+  /* ── ARQUIVO ITEM ── */
+  .arquivo-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+  .arquivo-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; background: var(--bg); border: 1px solid var(--border);
+    border-radius: var(--radius); transition: border-color 0.18s;
+  }
+  .arquivo-item:hover { border-color: var(--border2); }
+  .arquivo-icon { font-size: 22px; flex-shrink: 0; width: 32px; text-align: center; }
+  .arquivo-info { flex: 1; min-width: 0; }
+  .arquivo-nome { font-size: 15px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .arquivo-meta { font-size: 12px; color: var(--text2); margin-top: 2px; }
+  .arquivo-actions { display: flex; gap: 4px; flex-shrink: 0; }
+
+  /* ── UPLOAD ZONE ── */
+  .upload-zone {
+    border: 2px dashed var(--border2); border-radius: var(--radius);
+    padding: 18px; text-align: center; cursor: pointer;
+    color: var(--text2); font-size: 14px; transition: all 0.18s;
+    margin-top: 8px;
+  }
+  .upload-zone:hover, .upload-zone.drag { border-color: var(--gold-dim); color: var(--gold); background: var(--bg3); }
+  .upload-zone .upload-icon { font-size: 28px; margin-bottom: 6px; }
+
+  /* ── MODAL ── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8);
+    z-index: 1000; align-items: center; justify-content: center; padding: 1rem;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal-box {
+    background: var(--bg2); border: 1px solid var(--border2); border-radius: var(--radius);
+    padding: 20px; width: 100%; max-width: 380px;
+  }
+  .modal-title { font-family: 'Cinzel', serif; font-size: 14px; color: var(--gold); margin-bottom: 14px; letter-spacing: 0.5px; }
+  .modal-actions { display: flex; gap: 8px; margin-top: 14px; justify-content: flex-end; }
+  .field-group { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+  .field-label { font-family: 'Cinzel', serif; font-size: 10px; color: var(--text3); letter-spacing: 0.8px; text-transform: uppercase; }
+
+  /* ── LIGHTBOX PDF/IMAGEM ── */
+  .viewer-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95);
+    z-index: 2000; flex-direction: column; align-items: center; justify-content: center;
+  }
+  .viewer-overlay.open { display: flex; }
+  .viewer-header {
+    width: 100%; max-width: 900px; display: flex; align-items: center;
+    justify-content: space-between; padding: 10px 16px;
+    color: var(--text3); font-size: 14px;
+  }
+  .viewer-body { flex: 1; width: 100%; max-width: 900px; overflow: auto; display: flex; align-items: center; justify-content: center; }
+  .viewer-body img { max-width: 100%; max-height: 80vh; border-radius: 4px; }
+  .viewer-body iframe { width: 100%; height: 80vh; border: none; border-radius: 4px; background: #fff; }
+
+  /* ── PROGRESS ── */
+  .progress-wrap { margin-top: 8px; display: none; }
+  .progress-wrap.show { display: block; }
+  .progress-bar { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--gold-dim); border-radius: 2px; transition: width 0.2s; width: 0%; }
+  .progress-label { font-size: 12px; color: var(--text2); margin-top: 4px; }
+
+  .empty-state { text-align: center; padding: 2rem 1rem; color: var(--text2); font-style: italic; font-size: 14px; }
+  .empty-icon { font-size: 32px; margin-bottom: 8px; opacity: 0.3; }
+
+  #toast {
+    position: fixed; bottom: 24px; right: 24px; background: var(--bg3);
+    border: 1px solid var(--border2); color: var(--gold); font-family: 'Cinzel', serif;
+    font-size: 13px; letter-spacing: 0.5px; padding: 10px 18px; border-radius: var(--radius);
+    opacity: 0; pointer-events: none; transition: opacity 0.3s; z-index: 9999;
+  }
+  .loading-overlay {
+    position: fixed; inset: 0; background: var(--bg); display: flex;
+    align-items: center; justify-content: center; font-family: 'Cinzel', serif;
+    color: var(--gold-dim); font-size: 14px; letter-spacing: 1px; z-index: 9998;
+  }
+
+  @media (max-width: 500px) {
+    .page-title { font-size: 17px; }
+    .arquivo-nome { font-size: 14px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loadingOverlay">Carregando arquivos...</div>
+
+<!-- MODAL: novo/editar grupo -->
+<div class="modal-overlay" id="modalGrupo">
+  <div class="modal-box">
+    <div class="modal-title" id="modalGrupoTitulo">Novo Grupo</div>
+    <div class="field-group">
+      <label class="field-label">Nome do grupo</label>
+      <input type="text" id="inputNomeGrupo" placeholder="Ex: Mapas, Regras, Lore...">
+    </div>
+    <div class="modal-actions">
+      <button onclick="fecharModalGrupo()">Cancelar</button>
+      <button class="btn-primary" onclick="salvarGrupo()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: upload arquivo -->
+<div class="modal-overlay" id="modalUpload">
+  <div class="modal-box">
+    <div class="modal-title">Adicionar Arquivo</div>
+    <div class="field-group">
+      <label class="field-label">Nome (opcional)</label>
+      <input type="text" id="inputNomeArquivo" placeholder="Deixe vazio para usar o nome do arquivo">
+    </div>
+    <div class="field-group">
+      <label class="field-label">Arquivo</label>
+      <input type="file" id="inputArquivo" style="padding:6px">
+    </div>
+    <div class="progress-wrap" id="progressWrap">
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-label" id="progressLabel">Carregando...</div>
+    </div>
+    <div class="modal-actions">
+      <button onclick="fecharModalUpload()">Cancelar</button>
+      <button class="btn-primary" onclick="confirmarUpload()" id="btnConfirmarUpload">📎 Adicionar</button>
+    </div>
+  </div>
+</div>
+
+<!-- VIEWER -->
+<div class="viewer-overlay" id="viewer">
+  <div class="viewer-header">
+    <span id="viewerNome" style="font-family:'Cinzel',serif;color:var(--gold);font-size:14px"></span>
+    <div style="display:flex;gap:8px">
+      <button onclick="downloadArquivo()" style="font-size:12px;padding:5px 12px">⬇ Baixar</button>
+      <button onclick="fecharViewer()" style="font-size:18px;padding:4px 10px;border-color:transparent">×</button>
+    </div>
+  </div>
+  <div class="viewer-body" id="viewerBody"></div>
+</div>
+
+<div class="wrap">
+  <div class="page-header">
+    <div class="page-title">📁 Arquivos</div>
+    <div class="header-actions">
+      <button class="btn-primary" onclick="abrirModalNovoGrupo()">+ Novo Grupo</button>
+      <button class="btn-logout" onclick="window.location.href='index.html'">← Voltar</button>
+    </div>
+  </div>
+
+  <div class="grupos-wrap" id="gruposWrap"></div>
+  <div class="empty-state" id="emptyMsg" style="display:none">
+    <div class="empty-icon">📂</div>
+    Nenhum grupo ainda.<br>Clique em "+ Novo Grupo" para começar.
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref as _ref, set, get, remove, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+const ref = (d, p) => _ref(d, P(p)); // caminhos dentro da sala atual
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCEiRmGP4wGrfDwbbIadvrt1Ik56ecbKYk",
+  authDomain: "path-of-stars.firebaseapp.com",
+  databaseURL: "https://path-of-stars-default-rtdb.firebaseio.com",
+  projectId: "path-of-stars",
+  storageBucket: "path-of-stars.firebasestorage.app",
+  messagingSenderId: "565088659888",
+  appId: "1:565088659888:web:8ee544001aee376e9f0e75"
+};
+
+const app = initializeApp(firebaseConfig);
+const db  = getDatabase(app);
+
+const logado = sessionStorage.getItem("logado");
+const tipo   = sessionStorage.getItem("tipo");
+if (!logado) window.location.href = "login.html";
+const isMestre = tipo === "mestre";
+
+let grupos = {};
+let uploadGrupoId = null;
+let editandoGrupoId = null;
+let viewerArquivoAtual = null;
+
+function genId() { return '_' + Math.random().toString(36).slice(2,9); }
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.opacity = '1';
+  clearTimeout(t._t); t._t = setTimeout(() => t.style.opacity = '0', 2500);
+}
+
+// ── FIREBASE ──
+onValue(ref(db, 'arquivo_grupos'), snap => {
+  grupos = snap.exists() ? snap.val() : {};
+  renderHome();
+});
+
+// ── RENDER HOME ──
+function renderHome() {
+  const wrap  = document.getElementById('gruposWrap');
+  const empty = document.getElementById('emptyMsg');
+  const ids   = Object.keys(grupos);
+  document.getElementById('loadingOverlay').style.display = 'none';
+
+  if (!ids.length) { wrap.innerHTML = ''; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+
+  wrap.innerHTML = ids.map(gid => {
+    const g = grupos[gid];
+    const arquivos = g.arquivos ? Object.values(g.arquivos) : [];
+
+    const mestreActions = isMestre ? `
+      <button class="btn-icon btn-primary" style="font-size:11px;width:auto;padding:4px 10px" onclick="event.stopPropagation();abrirModalUpload('${gid}')">+ Arquivo</button>
+      <button class="btn-icon" onclick="event.stopPropagation();abrirModalEditarGrupo('${gid}')" title="Renomear">✏️</button>
+      <button class="btn-icon btn-danger" onclick="event.stopPropagation();deletarGrupo('${gid}')" title="Excluir grupo">🗑</button>` : `
+      <button class="btn-icon btn-primary" style="font-size:11px;width:auto;padding:4px 10px" onclick="event.stopPropagation();abrirModalUpload('${gid}')">+ Arquivo</button>`;
+
+    const arquivoRows = arquivos.length
+      ? arquivos.map(a => {
+          const icon = getIcone(a.tipo);
+          const delBtn = isMestre ? `<button class="btn-icon btn-danger" onclick="deletarArquivo('${gid}','${a.id}')" title="Excluir">🗑</button>` : '';
+          return `<div class="arquivo-item">
+            <div class="arquivo-icon">${icon}</div>
+            <div class="arquivo-info">
+              <div class="arquivo-nome">${esc(a.nome)}</div>
+              <div class="arquivo-meta">${esc(a.tipoLabel||'')}${a.tamanho ? ' · ' + formatarTamanho(a.tamanho) : ''}${a.autor ? ' · ' + esc(a.autor) : ''}</div>
+            </div>
+            <div class="arquivo-actions">
+              <button class="btn-icon" onclick="abrirViewer('${gid}','${a.id}')" title="Visualizar">👁</button>
+              <button class="btn-icon" onclick="downloadArquivoById('${gid}','${a.id}')" title="Baixar">⬇</button>
+              ${delBtn}
+            </div>
+          </div>`;
+        }).join('')
+      : '<div class="empty-state" style="padding:1rem"><div class="empty-icon" style="font-size:20px">📄</div>Nenhum arquivo neste grupo.</div>';
+
+    return `<div class="grupo-block">
+      <div class="grupo-header" onclick="toggleGrupo('${gid}')">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="grupo-titulo">📂 ${esc(g.nome)}</span>
+          <span class="grupo-count">${arquivos.length} arquivo${arquivos.length !== 1 ? 's' : ''}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:4px">
+          <div class="grupo-actions">${mestreActions}</div>
+          <span class="grupo-chevron open" id="grupoChev_${gid}">▼</span>
+        </div>
+      </div>
+      <div class="grupo-body open" id="grupoBody_${gid}">
+        <div class="arquivo-list">${arquivoRows}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+window.renderHome = renderHome;
+
+// ── GRUPOS ──
+function abrirModalNovoGrupo() {
+  editandoGrupoId = null;
+  document.getElementById('modalGrupoTitulo').textContent = 'Novo Grupo';
+  document.getElementById('inputNomeGrupo').value = '';
+  document.getElementById('modalGrupo').classList.add('open');
+  setTimeout(() => document.getElementById('inputNomeGrupo').focus(), 100);
+}
+window.abrirModalNovoGrupo = abrirModalNovoGrupo;
+
+function abrirModalEditarGrupo(gid) {
+  editandoGrupoId = gid;
+  document.getElementById('modalGrupoTitulo').textContent = 'Renomear Grupo';
+  document.getElementById('inputNomeGrupo').value = grupos[gid]?.nome || '';
+  document.getElementById('modalGrupo').classList.add('open');
+  setTimeout(() => document.getElementById('inputNomeGrupo').focus(), 100);
+}
+window.abrirModalEditarGrupo = abrirModalEditarGrupo;
+
+function fecharModalGrupo() {
+  document.getElementById('modalGrupo').classList.remove('open');
+}
+window.fecharModalGrupo = fecharModalGrupo;
+
+async function salvarGrupo() {
+  const nome = document.getElementById('inputNomeGrupo').value.trim();
+  if (!nome) { showToast('Digite um nome!'); return; }
+  if (editandoGrupoId) {
+    await set(ref(db, 'arquivo_grupos/' + editandoGrupoId + '/nome'), nome);
+    showToast('Grupo renomeado!');
+  } else {
+    const id = genId();
+    await set(ref(db, 'arquivo_grupos/' + id), { nome, arquivos: {} });
+    showToast('Grupo criado!');
+  }
+  fecharModalGrupo();
+}
+window.salvarGrupo = salvarGrupo;
+
+async function deletarGrupo(gid) {
+  const g = grupos[gid];
+  const qtd = Object.keys(g?.arquivos || {}).length;
+  if (!confirm(`Excluir grupo "${g.nome}"${qtd > 0 ? ` e seus ${qtd} arquivo(s)` : ''}?`)) return;
+  await remove(ref(db, 'arquivo_grupos/' + gid));
+  showToast('Grupo excluído!');
+}
+window.deletarGrupo = deletarGrupo;
+
+function toggleGrupo(gid) {
+  document.getElementById('grupoBody_' + gid)?.classList.toggle('open');
+  document.getElementById('grupoChev_' + gid)?.classList.toggle('open');
+}
+window.toggleGrupo = toggleGrupo;
+
+// ── UPLOAD ──
+function abrirModalUpload(gid) {
+  uploadGrupoId = gid;
+  document.getElementById('inputNomeArquivo').value = '';
+  document.getElementById('inputArquivo').value = '';
+  document.getElementById('progressWrap').classList.remove('show');
+  document.getElementById('progressFill').style.width = '0%';
+  document.getElementById('btnConfirmarUpload').disabled = false;
+  document.getElementById('modalUpload').classList.add('open');
+}
+window.abrirModalUpload = abrirModalUpload;
+
+function fecharModalUpload() {
+  document.getElementById('modalUpload').classList.remove('open');
+  uploadGrupoId = null;
+}
+window.fecharModalUpload = fecharModalUpload;
+
+async function confirmarUpload() {
+  const fileInput = document.getElementById('inputArquivo');
+  const file = fileInput.files[0];
+  if (!file) { showToast('Selecione um arquivo!'); return; }
+
+  const MAX_MB = 5;
+  if (file.size > MAX_MB * 1024 * 1024) {
+    showToast(`Arquivo muito grande! Máx ${MAX_MB}MB.`); return;
+  }
+
+  const nomeCustom = document.getElementById('inputNomeArquivo').value.trim();
+  const nome = nomeCustom || file.name;
+  const usuario = sessionStorage.getItem("usuario") || "mestre";
+
+  document.getElementById('btnConfirmarUpload').disabled = true;
+  document.getElementById('progressWrap').classList.add('show');
+  document.getElementById('progressLabel').textContent = 'Lendo arquivo...';
+
+  const reader = new FileReader();
+  reader.onprogress = e => {
+    if (e.lengthComputable) {
+      const pct = Math.round((e.loaded / e.total) * 80);
+      document.getElementById('progressFill').style.width = pct + '%';
+    }
+  };
+  reader.onload = async e => {
+    document.getElementById('progressFill').style.width = '90%';
+    document.getElementById('progressLabel').textContent = 'Salvando...';
+    const id = genId();
+    const arquivo = {
+      id, nome,
+      tipo: file.type || 'application/octet-stream',
+      tipoLabel: getTipoLabel(file.type, file.name),
+      tamanho: file.size,
+      autor: usuario,
+      data: new Date().toLocaleDateString('pt-BR'),
+      dados: e.target.result // base64
+    };
+    try {
+      await set(ref(db, 'arquivo_grupos/' + uploadGrupoId + '/arquivos/' + id), arquivo);
+      document.getElementById('progressFill').style.width = '100%';
+      document.getElementById('progressLabel').textContent = 'Pronto!';
+      setTimeout(() => { fecharModalUpload(); showToast('Arquivo adicionado!'); }, 400);
+    } catch(err) {
+      showToast('Erro ao salvar. Arquivo pode ser grande demais.');
+      document.getElementById('btnConfirmarUpload').disabled = false;
+    }
+  };
+  reader.onerror = () => { showToast('Erro ao ler o arquivo.'); document.getElementById('btnConfirmarUpload').disabled = false; };
+  reader.readAsDataURL(file);
+}
+window.confirmarUpload = confirmarUpload;
+
+async function deletarArquivo(gid, aid) {
+  if (!isMestre) return;
+  if (!confirm('Excluir este arquivo?')) return;
+  await remove(ref(db, 'arquivo_grupos/' + gid + '/arquivos/' + aid));
+  showToast('Arquivo excluído!');
+}
+window.deletarArquivo = deletarArquivo;
+
+// ── VIEWER ──
+function abrirViewer(gid, aid) {
+  const a = grupos[gid]?.arquivos?.[aid];
+  if (!a) return;
+  viewerArquivoAtual = a;
+  document.getElementById('viewerNome').textContent = a.nome;
+  const body = document.getElementById('viewerBody');
+  body.innerHTML = '';
+
+  if (a.tipo.startsWith('image/')) {
+    const img = document.createElement('img');
+    img.src = a.dados;
+    img.alt = a.nome;
+    body.appendChild(img);
+  } else if (a.tipo === 'application/pdf') {
+    const iframe = document.createElement('iframe');
+    iframe.src = a.dados;
+    body.appendChild(iframe);
+  } else {
+    // Não é imagem nem PDF — mostrar mensagem e botão de download
+    body.innerHTML = `
+      <div style="text-align:center;color:var(--text3);padding:2rem">
+        <div style="font-size:48px;margin-bottom:1rem">${getIcone(a.tipo)}</div>
+        <div style="font-family:'Cinzel',serif;font-size:14px;margin-bottom:8px">${esc(a.nome)}</div>
+        <div style="font-size:13px;color:var(--text2);margin-bottom:1.5rem">${esc(a.tipoLabel||a.tipo)}</div>
+        <button class="btn-primary" onclick="downloadArquivo()" style="font-size:13px;padding:8px 20px">⬇ Baixar arquivo</button>
+      </div>`;
+  }
+  document.getElementById('viewer').classList.add('open');
+}
+window.abrirViewer = abrirViewer;
+
+function fecharViewer() {
+  document.getElementById('viewer').classList.remove('open');
+  document.getElementById('viewerBody').innerHTML = '';
+  viewerArquivoAtual = null;
+}
+window.fecharViewer = fecharViewer;
+
+function downloadArquivo() {
+  if (!viewerArquivoAtual) return;
+  const a = document.createElement('a');
+  a.href = viewerArquivoAtual.dados;
+  a.download = viewerArquivoAtual.nome;
+  a.click();
+}
+window.downloadArquivo = downloadArquivo;
+
+function downloadArquivoById(gid, aid) {
+  const a = grupos[gid]?.arquivos?.[aid];
+  if (!a) return;
+  const link = document.createElement('a');
+  link.href = a.dados;
+  link.download = a.nome;
+  link.click();
+}
+window.downloadArquivoById = downloadArquivoById;
+
+// ── HELPERS ──
+function getIcone(tipo) {
+  if (!tipo) return '📄';
+  if (tipo.startsWith('image/')) return '🖼️';
+  if (tipo === 'application/pdf') return '📕';
+  if (tipo.includes('word') || tipo.includes('document')) return '📝';
+  if (tipo.includes('sheet') || tipo.includes('excel') || tipo.includes('csv')) return '📊';
+  if (tipo.includes('presentation') || tipo.includes('powerpoint')) return '📊';
+  if (tipo.includes('text')) return '📄';
+  if (tipo.includes('zip') || tipo.includes('rar') || tipo.includes('7z')) return '🗜️';
+  if (tipo.includes('audio')) return '🎵';
+  if (tipo.includes('video')) return '🎬';
+  return '📎';
+}
+
+function getTipoLabel(tipo, nome) {
+  if (!tipo && nome) {
+    const ext = nome.split('.').pop().toUpperCase();
+    return ext || 'Arquivo';
+  }
+  if (tipo.startsWith('image/')) return 'Imagem';
+  if (tipo === 'application/pdf') return 'PDF';
+  if (tipo.includes('word') || tipo.includes('document')) return 'Word';
+  if (tipo.includes('sheet') || tipo.includes('excel')) return 'Excel';
+  if (tipo.includes('csv')) return 'CSV';
+  if (tipo.includes('presentation') || tipo.includes('powerpoint')) return 'PowerPoint';
+  if (tipo.includes('text/plain')) return 'Texto';
+  if (tipo.includes('zip')) return 'ZIP';
+  if (tipo.includes('audio')) return 'Áudio';
+  if (tipo.includes('video')) return 'Vídeo';
+  const ext = nome ? nome.split('.').pop().toUpperCase() : '';
+  return ext || 'Arquivo';
+}
+
+function formatarTamanho(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
+  return (bytes/1024/1024).toFixed(1) + ' MB';
+}
+
+// Fechar modals ao clicar fora
+document.getElementById('modalGrupo').addEventListener('click', e => { if (e.target === e.currentTarget) fecharModalGrupo(); });
+document.getElementById('modalUpload').addEventListener('click', e => { if (e.target === e.currentTarget) fecharModalUpload(); });
+document.getElementById('viewer').addEventListener('click', e => { if (e.target === e.currentTarget) fecharViewer(); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { fecharViewer(); fecharModalGrupo(); fecharModalUpload(); }
+  if (e.key === 'Enter' && document.getElementById('modalGrupo').classList.contains('open')) salvarGrupo();
+});
+
+// Drag and drop na zona de upload
+document.addEventListener('dragover', e => e.preventDefault());
+</script>
+</body>
+</html>

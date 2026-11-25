@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dados — RPG</title>
+<script src="sala.js"></script>
+<script>if (!sessionStorage.getItem("logado")) { location.replace("login.html"); }</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:#0d0b12; --bg2:#130d1a; --bg3:#160e1e;
+    --border:#2e1f3a; --border2:#6b1a45;
+    --gold:#c4547a; --gold-dim:#ad0e49;
+    --text:#fff; --text3:#e8d0da; --dim:#9a7f8c;
+    --radius:6px;
+  }
+  body { font-family:'Crimson Text',Georgia,serif; background:var(--bg); color:var(--text); min-height:100vh; font-size:16px; line-height:1.5; overflow-x:hidden; }
+  input { font-family:inherit; font-size:15px; color:var(--text); background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:6px 10px; width:100%; }
+  input:focus { outline:none; border-color:var(--gold-dim); background:var(--bg3); }
+  button { font-family:inherit; cursor:pointer; border-radius:var(--radius); border:1px solid var(--border2); background:transparent; color:var(--text3); padding:6px 12px; font-size:14px; transition:.18s; }
+  button:hover { background:var(--bg3); border-color:var(--gold-dim); color:var(--gold); }
+  button:active { transform:scale(.96); }
+  button:disabled { opacity:.45; cursor:default; }
+  .wrap { max-width:860px; margin:0 auto; padding:1.5rem; }
+  .head { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; padding-bottom:1rem; border-bottom:1px solid var(--border); margin-bottom:1rem; }
+  .title { font-family:'Cinzel',serif; font-size:20px; letter-spacing:1px; color:var(--gold); }
+  .sala { font-size:12px; color:var(--dim); font-family:'Cinzel',serif; letter-spacing:.5px; }
+
+  /* palco */
+  .stage { min-height:230px; background:radial-gradient(ellipse at 50% 85%, #1d1228 0%, var(--bg2) 70%); border:1px solid var(--border); border-radius:12px; padding:18px 10px 10px; display:flex; flex-wrap:wrap; gap:18px 22px; justify-content:center; align-items:flex-end; position:relative; overflow:hidden; }
+  .stage .vazio { color:var(--dim); font-style:italic; align-self:center; text-align:center; }
+  .stage.compact { --s:56px; gap:12px 14px; }
+  .die { --s:76px; display:flex; flex-direction:column; align-items:center; gap:8px; }
+  .stage.compact .die { --s:56px; }
+  .lbl { font-family:'Cinzel',serif; font-size:11px; color:var(--dim); letter-spacing:.8px; }
+  .scene { width:var(--s); height:var(--s); perspective:700px; filter:drop-shadow(0 10px 8px rgba(0,0,0,.55)); }
+
+  /* d6 em 3D */
+  .cube { width:100%; height:100%; position:relative; transform-style:preserve-3d; transition:transform var(--dur,1.1s) cubic-bezier(.18,.78,.22,1); }
+  .face { position:absolute; inset:0; display:grid; grid-template:repeat(3,1fr)/repeat(3,1fr); padding:15%; background:linear-gradient(145deg,#fbf7fc,#e6dcea); border:1px solid #bdaec4; border-radius:14%; }
+  .pip { width:78%; height:78%; margin:auto; border-radius:50%; background:radial-gradient(circle at 35% 30%,#4a3a55,#1a1020); }
+  .face.f1 .pip { background:radial-gradient(circle at 35% 30%,#e0779a,#a3114a); width:96%; height:96%; }
+  .fr { transform:rotateY(0deg)   translateZ(calc(var(--s)/2)); }
+  .bk { transform:rotateY(180deg) translateZ(calc(var(--s)/2)); }
+  .rt { transform:rotateY(90deg)  translateZ(calc(var(--s)/2)); }
+  .lf { transform:rotateY(-90deg) translateZ(calc(var(--s)/2)); }
+  .tp { transform:rotateX(90deg)  translateZ(calc(var(--s)/2)); }
+  .bt { transform:rotateX(-90deg) translateZ(calc(var(--s)/2)); }
+  .scene.hop { animation:hop var(--dur,1.1s) cubic-bezier(.3,.6,.4,1); }
+  @keyframes hop { 0%{transform:translateY(0)} 30%{transform:translateY(-70px)} 55%{transform:translateY(0)} 70%{transform:translateY(-22px)} 85%{transform:translateY(0)} 93%{transform:translateY(-6px)} 100%{transform:translateY(0)} }
+
+  /* outros dados (forma plana girando em 3D) */
+  .shape { width:100%; height:100%; position:relative; display:flex; align-items:center; justify-content:center; }
+  .shape svg { position:absolute; inset:0; width:100%; height:100%; overflow:visible; }
+  .shape .num { position:relative; font-family:'Cinzel',serif; font-weight:700; font-size:calc(var(--s)*.36); color:#fff; text-shadow:0 1px 3px rgba(0,0,0,.7); }
+  .shape .num.long { font-size:calc(var(--s)*.26); }
+  .shape.d4 .num { transform:translateY(16%); }
+  .shape.rolling { animation:tumble var(--dur,1s) cubic-bezier(.3,.6,.4,1); }
+  .shape.landed { animation:settle .35s ease-out; }
+  .shape.crit svg { filter:drop-shadow(0 0 10px #ffd35a); }
+  .shape.crit .num { color:#ffe27a; }
+  .shape.fail svg { filter:drop-shadow(0 0 10px #ff4d4d); }
+  @keyframes tumble {
+    0%   { transform:translateY(0) rotate3d(1,1,0,0deg); }
+    28%  { transform:translateY(-70px) rotate3d(1,.6,.3,300deg) scale(1.1); }
+    55%  { transform:translateY(0) rotate3d(.4,1,.2,560deg); }
+    72%  { transform:translateY(-20px) rotate3d(.2,1,.4,660deg); }
+    88%  { transform:translateY(0) rotate3d(1,0,0,710deg); }
+    94%  { transform:translateY(-5px) rotate3d(1,0,0,716deg); }
+    100% { transform:translateY(0) rotate3d(1,1,0,720deg); }
+  }
+  @keyframes settle { 0%{transform:scale(1.14)} 100%{transform:scale(1)} }
+
+  /* total */
+  .total-box { text-align:center; margin:16px 0 4px; min-height:92px; }
+  .total-lbl { font-family:'Cinzel',serif; font-size:12px; color:var(--dim); letter-spacing:2px; text-transform:uppercase; }
+  .total { font-family:'Cinzel',serif; font-size:56px; color:var(--gold); line-height:1.1; }
+  .total.pop { animation:pop .4s ease-out; }
+  @keyframes pop { 0%{transform:scale(.6);opacity:.2} 60%{transform:scale(1.15)} 100%{transform:scale(1);opacity:1} }
+  .break { font-size:15px; color:var(--text3); }
+  .break .g { color:var(--dim); }
+
+  /* controles */
+  .sec-title { font-family:'Cinzel',serif; font-size:12px; color:var(--gold-dim); letter-spacing:1px; margin:20px 0 10px; display:flex; align-items:center; gap:10px; text-transform:uppercase; }
+  .sec-title::after { content:''; flex:1; height:1px; background:var(--border); }
+  .tray { display:grid; grid-template-columns:repeat(auto-fill,minmax(118px,1fr)); gap:10px; }
+  .dcard { background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:10px 8px 8px; display:flex; flex-direction:column; align-items:center; gap:6px; position:relative; }
+  .dcard.on { border-color:var(--gold-dim); background:var(--bg3); }
+  .dcard svg { width:42px; height:42px; }
+  .dname { font-family:'Cinzel',serif; font-size:13px; color:var(--text3); }
+  .ctl { display:flex; align-items:center; gap:6px; }
+  .ctl button { padding:2px 10px; font-size:16px; line-height:1.3; }
+  .cnt { min-width:22px; text-align:center; font-family:'Cinzel',serif; color:var(--gold); }
+  .xdel { position:absolute; top:2px; right:4px; border:none; padding:0 4px; font-size:14px; color:var(--dim); }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .row input { width:120px; }
+  .chips { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+  .chip { border:1px solid var(--border2); background:var(--bg3); border-radius:14px; padding:1px 4px 1px 11px; font-size:14px; display:inline-flex; gap:4px; align-items:center; }
+  .chip button { border:none; padding:0 6px; font-size:15px; color:var(--dim); }
+  .expr { margin-top:16px; padding:10px 14px; background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); font-size:17px; min-height:44px; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+  .expr .t { color:var(--text3); }
+  .expr .t.vazio { color:var(--dim); font-style:italic; }
+  .actions { display:flex; gap:8px; }
+  .roll { font-family:'Cinzel',serif; letter-spacing:.8px; border-color:var(--gold); color:var(--gold); padding:9px 22px; font-size:15px; background:var(--bg3); }
+  .roll:hover { background:#25101c; }
+
+  /* histórico */
+  .hist { display:flex; flex-direction:column; gap:6px; }
+  .h-item { background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:7px 12px; display:flex; justify-content:space-between; gap:10px; align-items:baseline; }
+  .h-item .e { font-size:15px; } .h-item .d { font-size:13px; color:var(--dim); }
+  .h-item .r { font-family:'Cinzel',serif; color:var(--gold); font-size:18px; }
+  .vazio-h { color:var(--dim); font-style:italic; font-size:14px; }
+  @media (prefers-reduced-motion: reduce) { .scene.hop, .shape.rolling { animation-duration:.2s !important; } }
+  @media (max-width:520px) { .total { font-size:44px; } .wrap { padding:1rem; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <div><div class="title">🎲 Dados</div><div class="sala" id="salaNome"></div></div>
+    <button onclick="location.href='index.html'">← Voltar</button>
+  </div>
+
+  <div class="stage" id="stage"><div class="vazio">Escolha os dados abaixo e clique em <b>Rolar</b>.</div></div>
+
+  <div class="total-box" aria-live="polite">
+    <div class="total-lbl">Total</div>
+    <div class="total" id="total">—</div>
+    <div class="break" id="break"></div>
+  </div>
+
+  <div class="expr">
+    <span class="t vazio" id="expr">Nenhum dado selecionado</span>
+    <div class="actions">
+      <button onclick="limpar()">Limpar</button>
+      <button class="roll" id="btnRolar" onclick="rolar()">🎲 Rolar</button>
+    </div>
+  </div>
+
+  <div class="sec-title">Dados</div>
+  <div class="tray" id="tray"></div>
+
+  <div class="sec-title">Criar dado</div>
+  <div class="row">
+    <input type="number" id="novoFaces" min="2" max="1000" placeholder="Nº de faces">
+    <button onclick="criarDado()">+ Criar dado</button>
+    <span style="color:var(--dim);font-size:13px">Ex.: 3 para um d3, 30 para um d30.</span>
+  </div>
+
+  <div class="sec-title">Somar números</div>
+  <div class="row">
+    <input type="number" id="novoNum" placeholder="Ex.: 3 ou -2">
+    <button onclick="addNum()">+ Somar</button>
+    <span style="color:var(--dim);font-size:13px">Modificadores que entram na soma do total.</span>
+  </div>
+  <div class="chips" id="nums"></div>
+
+  <div class="sec-title">Histórico</div>
+  <div class="hist" id="hist"></div>
+  <div style="margin-top:10px"><button onclick="limparHist()" style="font-size:12px">Limpar histórico</button></div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  $('salaNome').textContent = 'Sala: ' + SALA.nome;
+
+  var PADRAO = [4, 6, 8, 10, 12, 20, 100];
+  var CORES = { 4: '#7a3060', 6: '#ece4ef', 8: '#2e5a8a', 10: '#2e6a4a', 12: '#8a5a1a', 20: '#8a1d55', 100: '#4a2060' };
+  var MAX_DADOS = 40;
+  var KEY = function (k) { return k + (window.SALA_SUF || ''); };
+
+  function ler(k, def) { try { var v = JSON.parse(localStorage.getItem(KEY(k))); return v == null ? def : v; } catch (e) { return def; } }
+  function gravar(k, v) { try { localStorage.setItem(KEY(k), JSON.stringify(v)); } catch (e) {} }
+
+  var custom = ler('dadosCustom', []);       // [faces...]
+  var mao = ler('dadosMao', {});             // { faces: quantidade }
+  var nums = ler('dadosNums', []);           // [3, -1 ...]
+  var hist = ler('dadosHist', []);
+  var rolando = false;
+
+  /* ── aleatório justo ── */
+  function rand(n) {
+    var lim = Math.floor(4294967296 / n) * n, x = new Uint32Array(1);
+    do { crypto.getRandomValues(x); } while (x[0] >= lim);
+    return (x[0] % n) + 1;
+  }
+
+  /* ── formas ── */
+  function formaSvg(f, cor, tam) {
+    var c = cor || '#666', id = 'g' + f + Math.random().toString(36).slice(2, 6);
+    var corpo;
+    switch (f) {
+      case 4:   corpo = '<polygon points="50,8 95,88 5,88"/>'; break;
+      case 8:   corpo = '<polygon points="50,3 93,50 50,97 7,50"/><line x1="7" y1="50" x2="93" y2="50"/>'; break;
+      case 10:  corpo = '<polygon points="50,3 93,38 50,97 7,38"/><line x1="7" y1="38" x2="93" y2="38"/>'; break;
+      case 12:  corpo = '<polygon points="50,4 96,38 78,93 22,93 4,38"/>'; break;
+      case 20:  corpo = '<polygon points="50,3 93,27 93,73 50,97 7,73 7,27"/><polyline points="50,3 79,68 21,68 50,3"/><line x1="7" y1="27" x2="21" y2="68"/><line x1="93" y1="27" x2="79" y2="68"/><line x1="50" y1="97" x2="21" y2="68"/><line x1="50" y1="97" x2="79" y2="68"/>'; break;
+      default:  corpo = '<circle cx="50" cy="50" r="46"/>';
+    }
+    return '<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="' + id + '" x1="0" y1="0" x2="1" y2="1">' +
+      '<stop offset="0" stop-color="' + c + '" stop-opacity="1"/><stop offset="1" stop-color="#14091a" stop-opacity=".95"/></linearGradient></defs>' +
+      '<g fill="url(#' + id + ')" stroke="#e8c2d2" stroke-width="2.5" stroke-linejoin="round" stroke-opacity=".75">' + corpo + '</g></svg>';
+  }
+  function iconeD6() {
+    return '<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="10" width="80" height="80" rx="14" fill="#efe7f1" stroke="#bdaec4" stroke-width="3"/>' +
+      '<g fill="#1a1020"><circle cx="30" cy="30" r="7"/><circle cx="70" cy="30" r="7"/><circle cx="50" cy="50" r="7"/><circle cx="30" cy="70" r="7"/><circle cx="70" cy="70" r="7"/></g></svg>';
+  }
+
+  /* ── d6 em 3D ── */
+  var PIPS = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
+  function faceHtml(cls, n) {
+    var cel = '';
+    for (var i = 0; i < 9; i++) cel += PIPS[n].indexOf(i) >= 0 ? '<span class="pip"></span>' : '<span></span>';
+    return '<div class="face ' + cls + ' f' + n + '">' + cel + '</div>';
+  }
+  // rotação do cubo que deixa a face v de frente
+  var ORI = { 1: [0, 0], 6: [0, 180], 2: [-90, 0], 5: [90, 0], 3: [0, -90], 4: [0, 90] };
+  function proximo(cur, base) { return base + 360 * (Math.ceil((cur - base) / 360) + 2 + rand(3) - 1); }
+  function setCubo(w, x, y) { w._x = x; w._y = y; w._cubo.style.transform = 'rotateX(' + x + 'deg) rotateY(' + y + 'deg)'; }
+
+  function criarDie(f) {
+    var w = document.createElement('div');
+    w.className = 'die'; w.dataset.f = f;
+    if (f === 6) {
+      w.innerHTML = '<div class="scene"><div class="cube">' +
+        faceHtml('fr', 1) + faceHtml('bk', 6) + faceHtml('rt', 3) + faceHtml('lf', 4) + faceHtml('tp', 2) + faceHtml('bt', 5) +
+        '</div></div><div class="lbl">d6</div>';
+      w._cubo = w.querySelector('.cube'); w._cena = w.querySelector('.scene');
+      w._cubo.style.transition = 'none';
+      setCubo(w, -24, -32);
+      void w._cubo.offsetWidth; w._cubo.style.transition = '';
+    } else {
+      var cor = CORES[f] || '#4a4a58';
+      w.innerHTML = '<div class="scene"><div class="shape d' + f + '">' + formaSvg(f, cor) + '<span class="num">d' + f + '</span></div></div><div class="lbl">d' + f + '</div>';
+      w._forma = w.querySelector('.shape'); w._num = w.querySelector('.num');
+      if (String(f).length >= 3) w._num.classList.add('long');
+    }
+    return w;
+  }
+
+  /* ── estado da mão ── */
+  function todosTipos() { return PADRAO.concat(custom.filter(function (f) { return PADRAO.indexOf(f) < 0; })).filter(function (v, i, a) { return a.indexOf(v) === i; }); }
+  function totalDados() { var t = 0; Object.keys(mao).forEach(function (k) { t += mao[k]; }); return t; }
+  function salvarEstado() { gravar('dadosMao', mao); gravar('dadosNums', nums); gravar('dadosCustom', custom); }
+
+  function mudar(f, d) {
+    var n = (mao[f] || 0) + d;
+    if (d > 0 && totalDados() >= MAX_DADOS) { aviso('Máximo de ' + MAX_DADOS + ' dados por rolagem.'); return; }
+    if (n <= 0) delete mao[f]; else mao[f] = n;
+    salvarEstado(); desenharTudo(true);
+  }
+  function aviso(m) { $('break').innerHTML = '<span class="g"></span>'; $('break').firstChild.textContent = m; }
+
+  function listaMao() { // [{f,n}] na ordem de menor para maior
+    return Object.keys(mao).map(Number).sort(function (a, b) { return a - b; }).map(function (f) { return { f: f, n: mao[f] }; });
+  }
+  function exprTexto() {
+    var partes = listaMao().map(function (d) { return d.n + 'd' + d.f; });
+    var s = partes.join(' + ');
+    nums.forEach(function (n) { s += (s ? (n < 0 ? ' − ' : ' + ') : (n < 0 ? '−' : '')) + Math.abs(n); });
+    return s;
+  }
+
+  /* ── desenho ── */
+  function desenharBandeja() {
+    var tray = $('tray'); tray.innerHTML = '';
+    todosTipos().forEach(function (f) {
+      var c = document.createElement('div'); c.className = 'dcard' + (mao[f] ? ' on' : '');
+      var icone = f === 6 ? iconeD6() : formaSvg(f, CORES[f] || '#4a4a58');
+      c.innerHTML = icone + '<div class="dname">d' + f + '</div><div class="ctl"><button type="button" class="m">−</button><span class="cnt">' + (mao[f] || 0) + '</span><button type="button" class="p">+</button></div>';
+      c.querySelector('.m').onclick = function () { mudar(f, -1); };
+      c.querySelector('.p').onclick = function () { mudar(f, 1); };
+      if (PADRAO.indexOf(f) < 0) {
+        var x = document.createElement('button'); x.className = 'xdel'; x.type = 'button'; x.textContent = '×'; x.title = 'Apagar este dado';
+        x.onclick = function () { custom = custom.filter(function (v) { return v !== f; }); delete mao[f]; salvarEstado(); desenharTudo(true); };
+        c.appendChild(x);
+      }
+      tray.appendChild(c);
+    });
+  }
+  function desenharNums() {
+    var box = $('nums'); box.innerHTML = '';
+    nums.forEach(function (n, i) {
+      var c = document.createElement('span'); c.className = 'chip';
+      c.appendChild(document.createTextNode((n >= 0 ? '+' : '−') + Math.abs(n)));
+      var b = document.createElement('button'); b.type = 'button'; b.textContent = '×';
+      b.onclick = function () { nums.splice(i, 1); salvarEstado(); desenharTudo(true); };
+      c.appendChild(b); box.appendChild(c);
+    });
+  }
+  function desenharPalco() {
+    var st = $('stage'); st.innerHTML = '';
+    var lista = listaMao(), total = totalDados();
+    st.classList.toggle('compact', total > 12);
+    if (!total) { st.innerHTML = '<div class="vazio">Escolha os dados abaixo e clique em <b>Rolar</b>.</div>'; return; }
+    lista.forEach(function (d) { for (var i = 0; i < d.n; i++) st.appendChild(criarDie(d.f)); });
+  }
+  function desenharExpr() {
+    var e = $('expr'), t = exprTexto();
+    e.textContent = t || 'Nenhum dado selecionado';
+    e.classList.toggle('vazio', !t);
+  }
+  function desenharTudo(refazPalco) {
+    if (rolando) return;
+    desenharBandeja(); desenharNums(); desenharExpr();
+    if (refazPalco) { desenharPalco(); $('total').textContent = '—'; $('break').textContent = ''; }
+  }
+
+  /* ── rolagem ── */
+  function animarDie(w, v, atraso, dur) {
+    return new Promise(function (resolve) {
+      var f = +w.dataset.f;
+      setTimeout(function () {
+        if (f === 6) {
+          var o = ORI[v];
+          w._cubo.style.setProperty('--dur', dur + 'ms'); w._cena.style.setProperty('--dur', dur + 'ms');
+          w._cubo.style.transition = 'transform ' + dur + 'ms cubic-bezier(.18,.78,.22,1)';
+          w._cena.classList.remove('hop'); void w._cena.offsetWidth; w._cena.classList.add('hop');
+          setCubo(w, proximo(w._x, o[0]), proximo(w._y, o[1]));
+          setTimeout(resolve, dur + 40);
+        } else {
+          var sh = w._forma;
+          sh.classList.remove('landed', 'crit', 'fail');
+          sh.style.setProperty('--dur', dur + 'ms'); sh.classList.remove('rolling'); void sh.offsetWidth; sh.classList.add('rolling');
+          var iv = setInterval(function () { w._num.textContent = rand(f); }, 65);
+          setTimeout(function () {
+            clearInterval(iv); w._num.textContent = v;
+            sh.classList.remove('rolling'); sh.classList.add('landed');
+            if (f === 20 && v === 20) sh.classList.add('crit');
+            if (f === 20 && v === 1) sh.classList.add('fail');
+            resolve();
+          }, dur);
+        }
+      }, atraso);
+    });
+  }
+
+  window.rolar = function () {
+    if (rolando) return;
+    var lista = listaMao();
+    if (!lista.length) { aviso('Escolha pelo menos um dado.'); return; }
+    rolando = true; $('btnRolar').disabled = true;
+    $('total').textContent = '…'; $('break').textContent = '';
+    if (!$('stage').querySelector('.die')) desenharPalco();
+
+    var dies = Array.prototype.slice.call($('stage').querySelectorAll('.die'));
+    var resultados = {}, k = 0, promessas = [];
+    var reduz = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    lista.forEach(function (d) {
+      resultados[d.f] = [];
+      for (var i = 0; i < d.n; i++) {
+        var v = rand(d.f); resultados[d.f].push(v);
+        var dur = reduz ? 200 : 900 + Math.floor(Math.random() * 450);
+        promessas.push(animarDie(dies[k], v, reduz ? 0 : Math.floor(Math.random() * 180), dur));
+        k++;
+      }
+    });
+
+    Promise.all(promessas).then(function () {
+      var soma = 0, detalhe = [];
+      lista.forEach(function (d) {
+        var s = resultados[d.f].reduce(function (a, b) { return a + b; }, 0); soma += s;
+        detalhe.push(d.n + 'd' + d.f + ' [' + resultados[d.f].join(', ') + ']');
+      });
+      var somaNums = nums.reduce(function (a, b) { return a + b; }, 0);
+      var total = soma + somaNums;
+      var tEl = $('total'); tEl.textContent = total; tEl.classList.remove('pop'); void tEl.offsetWidth; tEl.classList.add('pop');
+
+      var partes = detalhe.slice();
+      nums.forEach(function (n) { partes.push((n >= 0 ? '+' : '−') + Math.abs(n)); });
+      $('break').textContent = partes.join('  ');
+
+      hist.unshift({ e: exprTexto(), d: detalhe.join('  ') + (nums.length ? '  ' + nums.map(function (n) { return (n >= 0 ? '+' : '−') + Math.abs(n); }).join(' ') : ''), r: total });
+      hist = hist.slice(0, 30); gravar('dadosHist', hist); desenharHist();
+      rolando = false; $('btnRolar').disabled = false;
+    });
+  };
+
+  window.limpar = function () {
+    if (rolando) return;
+    mao = {}; nums = []; salvarEstado(); desenharTudo(true);
+  };
+  window.criarDado = function () {
+    var f = parseInt($('novoFaces').value, 10);
+    if (!f || f < 2 || f > 1000) { aviso('Use entre 2 e 1000 faces.'); return; }
+    if (todosTipos().indexOf(f) < 0) custom.push(f);
+    mao[f] = (mao[f] || 0) + 1;
+    $('novoFaces').value = ''; salvarEstado(); desenharTudo(true);
+  };
+  window.addNum = function () {
+    var n = parseInt($('novoNum').value, 10);
+    if (isNaN(n)) { aviso('Digite um número.'); return; }
+    nums.push(n); $('novoNum').value = ''; salvarEstado(); desenharTudo(false);
+  };
+
+  function desenharHist() {
+    var box = $('hist'); box.innerHTML = '';
+    if (!hist.length) { box.innerHTML = '<div class="vazio-h">Nenhuma rolagem ainda.</div>'; return; }
+    hist.forEach(function (h) {
+      var d = document.createElement('div'); d.className = 'h-item';
+      var l = document.createElement('div');
+      var e = document.createElement('div'); e.className = 'e'; e.textContent = h.e;
+      var x = document.createElement('div'); x.className = 'd'; x.textContent = h.d;
+      l.appendChild(e); l.appendChild(x);
+      var r = document.createElement('div'); r.className = 'r'; r.textContent = h.r;
+      d.appendChild(l); d.appendChild(r); box.appendChild(d);
+    });
+  }
+  window.limparHist = function () { hist = []; gravar('dadosHist', hist); desenharHist(); };
+
+  $('novoFaces').addEventListener('keydown', function (e) { if (e.key === 'Enter') window.criarDado(); });
+  $('novoNum').addEventListener('keydown', function (e) { if (e.key === 'Enter') window.addNum(); });
+
+  desenharTudo(true); desenharHist();
+})();
+</script>
+</body>
+</html>

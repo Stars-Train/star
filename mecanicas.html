@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<script src="sala.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mecânicas — RPG</title>
+<!-- Verificação de sessão imediata -->
+<script>
+  if (!sessionStorage.getItem("logado")) { window.location.replace("login.html"); }
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{--bg:#0e0c14;--bg2:#14111d;--bg3:#1a1626;--border:#2c2440;--border2:#4a3a78;--gold:#b49cff;--gold-dim:#8c6cf0;--text:#fff;--text2:#9a88d6;--text3:#e6e0ff;--red2:#c07a9a;--radius:6px}
+  body{font-family:'Crimson Text',Georgia,serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:16px;line-height:1.5;overflow-x:hidden}
+  ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:var(--bg2)}::-webkit-scrollbar-thumb{background:var(--gold-dim);border-radius:3px}
+  input{font-family:inherit;font-size:15px;color:var(--text);background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:6px 10px;width:100%;transition:border-color .2s}
+  input:focus{outline:none;border-color:var(--gold-dim);background:var(--bg3)}
+  button{font-family:inherit;cursor:pointer;border-radius:var(--radius);border:1px solid var(--border2);background:transparent;color:var(--text2);padding:7px 14px;font-size:14px;transition:all .18s}
+  button:hover{background:var(--bg3);border-color:var(--gold-dim);color:var(--gold)}
+  button:active{transform:scale(.97)}
+  .btn-primary{background:var(--bg3);border-color:var(--gold-dim);color:var(--gold);font-family:'Cinzel',serif;font-size:13px;letter-spacing:.5px}
+  .btn-icon{padding:5px 9px;font-size:15px;min-width:30px;display:inline-flex;align-items:center;justify-content:center}
+  .btn-danger{color:var(--red2);border-color:transparent}
+  .btn-danger:hover{background:rgba(192,122,154,.12);border-color:#7a4a62;color:#e49ab8}
+  .btn-back{background:transparent;border-color:var(--border);color:var(--text3);font-size:12px;padding:5px 10px}
+  .screen{display:none}.screen.active{display:block}
+  .wrap{max-width:780px;margin:0 auto;padding:1.5rem}
+
+  /* leitura: jogadores só visualizam */
+  .readonly-badge{display:none;background:#1b1530;border:1px solid var(--gold-dim);color:var(--gold-dim);font-family:'Cinzel',serif;font-size:11px;letter-spacing:.5px;padding:4px 10px;border-radius:var(--radius)}
+  body.readonly .readonly-badge{display:inline-block}
+  body.readonly .new-btn,body.readonly .btn-del-doc,body.readonly #toolbar,body.readonly .add-bar,body.readonly .save-btn,body.readonly .bloco-ctrl,body.readonly .bloco-texto .bloco-head,body.readonly #saveState{display:none!important}
+
+  /* home */
+  .home-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid var(--border);gap:10px;flex-wrap:wrap}
+  .home-title{font-family:'Cinzel',serif;font-size:20px;color:var(--gold);letter-spacing:1px}
+  .home-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .doc-list{display:flex;flex-direction:column;gap:8px}
+  .search-wrap{margin-bottom:12px}
+  .search-wrap input{padding:10px 12px}
+  .doc-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 16px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);transition:border-color .2s;cursor:pointer}
+  .doc-item:hover{border-color:var(--border2)}
+  .doc-left{display:flex;align-items:center;gap:12px;min-width:0}
+  .doc-icon{width:40px;height:40px;border-radius:50%;background:var(--bg3);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+  .doc-name{font-size:16px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .doc-meta{font-size:13px;color:var(--text2);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .doc-actions{display:flex;gap:6px;flex-shrink:0}
+  .empty-state{text-align:center;padding:3rem 1rem;color:var(--text2);font-style:italic;font-size:15px}
+  .empty-icon{font-size:36px;margin-bottom:.75rem;opacity:.3}
+
+  /* editor */
+  .editor-header{display:flex;align-items:center;gap:10px;margin-bottom:1.25rem;padding-bottom:.875rem;border-bottom:1px solid var(--border)}
+  .editor-title{font-family:'Cinzel',serif;font-size:16px;color:var(--gold);letter-spacing:.5px}
+  #saveState{margin-left:auto;font-size:12px;color:var(--text2);font-style:italic}
+  .doc-title-input{font-family:'Cinzel',serif;font-size:22px;font-weight:600;color:var(--gold);background:transparent;border:none;border-bottom:1px solid var(--border);border-radius:0;padding:6px 0;margin-bottom:14px;letter-spacing:.5px}
+  .doc-title-input:focus{border-bottom-color:var(--gold-dim);background:transparent}
+  #toolbar{position:sticky;top:0;z-index:5;display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px;padding:6px 8px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius)}
+  .tool-btn{padding:4px 9px;font-size:13px;min-width:30px;border-color:transparent;color:var(--text3)}
+  .tool-sep{width:1px;background:var(--border);margin:2px 4px}
+
+  /* blocos */
+  .bloco{margin-bottom:12px}
+  .bloco-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+  .bloco-tag{font-family:'Cinzel',serif;font-size:10px;letter-spacing:.8px;color:var(--text2);text-transform:uppercase}
+  .bloco-ctrl{display:flex;gap:4px;flex-shrink:0}
+  .bloco-ctrl button{padding:2px 8px;font-size:14px;border-color:transparent}
+  .bloco-titulo{font-family:'Cinzel',serif;font-size:15px;color:var(--gold);background:transparent;border:none;border-bottom:1px solid var(--border);border-radius:0;padding:4px 0;letter-spacing:.4px;flex:1;min-width:0}
+  .bloco-corpo{outline:none;line-height:1.7;font-size:16px;min-height:44px;word-wrap:break-word}
+  .bloco-corpo:empty::before{content:attr(data-ph);color:#6b6190;font-style:italic}
+  .bloco-corpo h2,.bloco-corpo h3{font-family:'Cinzel',serif;color:var(--gold);margin:10px 0 6px}
+  .bloco-corpo ul{margin:6px 0 6px 22px}
+  .bloco-texto .bloco-corpo{padding:6px 2px}
+  body:not(.readonly) .bloco-texto .bloco-corpo{border:1px dashed var(--border);border-radius:var(--radius);padding:8px 10px}
+  body:not(.readonly) .bloco-texto .bloco-corpo:focus{border-color:var(--gold-dim);background:var(--bg2)}
+  .bloco-caixa{background:var(--bg2);border:1px solid var(--border2);border-left:4px solid var(--gold-dim);border-radius:var(--radius);padding:12px 14px}
+  .bloco-caixa .bloco-corpo{padding:4px 0}
+  body:not(.readonly) .bloco-caixa .bloco-corpo:focus{background:var(--bg3);border-radius:4px}
+  .add-bar{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;padding-top:12px;border-top:1px dashed var(--border)}
+  .add-bar button{flex:1;min-width:130px;border-style:dashed}
+  .nav-footer{display:flex;justify-content:flex-end;margin-top:1.25rem;padding-top:1rem;border-top:1px solid var(--border)}
+
+  #toast{position:fixed;bottom:24px;right:24px;background:var(--bg3);border:1px solid var(--gold-dim);color:var(--gold);font-family:'Cinzel',serif;font-size:13px;letter-spacing:.5px;padding:10px 18px;border-radius:var(--radius);opacity:0;pointer-events:none;transition:opacity .3s;z-index:9999}
+  @media(max-width:500px){.home-title{font-size:17px}.doc-title-input{font-size:18px}}
+</style>
+</head>
+<body>
+
+<!-- HOME: lista de mecânicas -->
+<div id="home" class="screen active">
+  <div class="wrap">
+    <div class="home-header">
+      <div class="home-title">🧩 Mecânicas</div>
+      <div class="home-actions">
+        <span class="readonly-badge">👁 Somente leitura</span>
+        <button class="btn-primary new-btn" onclick="novaMecanica()">+ Nova Mecânica</button>
+        <button class="btn-primary" id="importMultiBtn" type="button" onclick="importarMulticlasseManual()" style="display:none">⇧ Importar Multiclasse</button>
+        <button class="btn-back" onclick="window.location.href='index.html'">← Voltar</button>
+      </div>
+    </div>
+    <div class="search-wrap">
+      <input type="search" id="searchMecanicas" placeholder="🔎 Pesquisar mecânicas e multiclasses..." aria-label="Pesquisar mecânicas">
+    </div>
+    <div class="doc-list" id="docList"></div>
+    <div class="empty-state" id="emptyMsg" style="display:none">
+      <div class="empty-icon">🧩</div>
+      Nenhuma mecânica ainda.<br><span id="emptyHint"></span>
+    </div>
+  </div>
+</div>
+
+<!-- EDITOR -->
+<div id="editor" class="screen">
+  <div class="wrap">
+    <div class="editor-header">
+      <button class="btn-icon" onclick="voltarHome()">←</button>
+      <span class="editor-title">Mecânica</span>
+      <span class="readonly-badge">👁 Leitura</span>
+      <span id="saveState"></span>
+    </div>
+
+    <input type="text" class="doc-title-input" id="f_titulo" placeholder="Título da mecânica">
+
+    <div id="toolbar">
+      <button type="button" class="tool-btn" onmousedown="event.preventDefault()" onclick="fmt('bold')" title="Negrito"><b>N</b></button>
+      <button type="button" class="tool-btn" onmousedown="event.preventDefault()" onclick="fmt('italic')" title="Itálico"><i>I</i></button>
+      <button type="button" class="tool-btn" onmousedown="event.preventDefault()" onclick="fmt('underline')" title="Sublinhado"><u>S</u></button>
+      <div class="tool-sep"></div>
+      <button type="button" class="tool-btn" onmousedown="event.preventDefault()" onclick="fmtBlock('h2')" title="Título">T1</button>
+      <button type="button" class="tool-btn" onmousedown="event.preventDefault()" onclick="fmtBlock('h3')" title="Subtítulo">T2</button>
+      <button type="button" class="tool-btn" onmousedown="event.preventDefault()" onclick="fmtBlock('p')" title="Parágrafo">¶</button>
+      <div class="tool-sep"></div>
+      <button type="button" class="tool-btn" onmousedown="event.preventDefault()" onclick="fmt('insertUnorderedList')" title="Lista">• Lista</button>
+    </div>
+
+    <div class="search-wrap">
+      <input type="search" id="searchBlocos" placeholder="🔎 Pesquisar uma multiclasse pelo nome ou classe..." aria-label="Pesquisar blocos">
+    </div>
+    <div id="blocos"></div>
+
+    <div class="add-bar">
+      <button type="button" onclick="addBloco('texto')">＋ Texto</button>
+      <button type="button" onclick="addBloco('caixa')">＋ Caixa de texto</button>
+    </div>
+
+    <div class="nav-footer">
+      <button class="btn-primary save-btn" onclick="salvarDoc(false)">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref as _ref, set, remove, onValue, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+const ref = (d, p) => _ref(d, P(p)); // caminhos dentro da sala atual
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCEiRmGP4wGrfDwbbIadvrt1Ik56ecbKYk",
+  authDomain: "path-of-stars.firebaseapp.com",
+  databaseURL: "https://path-of-stars-default-rtdb.firebaseio.com",
+  projectId: "path-of-stars",
+  storageBucket: "path-of-stars.firebasestorage.app",
+  messagingSenderId: "565088659888",
+  appId: "1:565088659888:web:8ee544001aee376e9f0e75"
+};
+const db = getDatabase(initializeApp(firebaseConfig));
+
+const isMestre = sessionStorage.getItem("tipo") === "mestre";
+if (!isMestre) document.body.classList.add("readonly");
+else document.getElementById("importMultiBtn").style.display = "inline-flex";
+document.getElementById("emptyHint").textContent = isMestre
+  ? 'Clique em "+ Nova Mecânica" para começar.'
+  : 'O mestre ainda não criou nenhuma mecânica.';
+
+let docs = [];
+let editingId = null;
+let editingCriado = 0;
+let saveTimer = null;
+let termoBusca = '';
+
+const $ = id => document.getElementById(id);
+const genId = () => '_' + Math.random().toString(36).slice(2, 9);
+const esc = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function showToast(msg) {
+  const t = $('toast'); t.textContent = msg; t.style.opacity = '1';
+  clearTimeout(t._t); t._t = setTimeout(() => t.style.opacity = '0', 2000);
+}
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  $(id).classList.add('active'); window.scrollTo(0, 0);
+}
+function setSaveState(txt) { $('saveState').textContent = txt; }
+function listaBlocos(d) {
+  const b = d && d.blocos;
+  return Array.isArray(b) ? b : Object.values(b || {});
+}
+
+// ── Firebase: lista em tempo real ──
+onValue(ref(db, 'mecanicas'), snap => {
+  docs = snap.exists() ? Object.values(snap.val()) : [];
+  docs.sort((a, b) => (a.criado || 0) - (b.criado || 0));
+  if ($('home').classList.contains('active')) renderHome();
+});
+
+function renderHome() {
+  const list = $('docList'), empty = $('emptyMsg');
+  const filtrados = docs.filter(d => {
+    const blocos = listaBlocos(d);
+    const tmp = document.createElement('div');
+    tmp.innerHTML = blocos.map(b => (b.titulo || '') + ' ' + (b.html || '')).join(' ');
+    const conteudo = (d.titulo || '') + ' ' + (tmp.textContent || '');
+    return conteudo.toLocaleLowerCase('pt-BR').includes(termoBusca.toLocaleLowerCase('pt-BR'));
+  });
+  if (!filtrados.length) {
+    list.innerHTML = '';
+    empty.style.display = 'block';
+    $('emptyMsg').querySelector('.empty-icon').textContent = termoBusca ? '🔎' : '🧩';
+    $('emptyMsg').childNodes[2].textContent = termoBusca ? 'Nenhuma mecânica encontrada.' : 'Nenhuma mecânica ainda.';
+    return;
+  }
+  empty.style.display = 'none';
+  list.innerHTML = filtrados.map(d => {
+    const blocos = listaBlocos(d);
+    const caixas = blocos.filter(b => b.tipo === 'caixa').length;
+    const tmp = document.createElement('div');
+    tmp.innerHTML = (blocos.find(b => b.tipo === 'texto') || blocos[0] || {}).html || '';
+    const preview = (tmp.textContent || '').trim().slice(0, 70);
+    const meta = (caixas ? caixas + (caixas === 1 ? ' caixa' : ' caixas') : 'sem caixas') + (preview ? ' · ' + preview : '');
+    const del = isMestre ? '<button class="btn-icon btn-danger btn-del-doc" data-del="' + esc(d.id) + '" title="Excluir">🗑</button>' : '';
+    return '<div class="doc-item" data-id="' + esc(d.id) + '">'
+      + '<div class="doc-left"><div class="doc-icon">🧩</div><div style="min-width:0"><div class="doc-name">' + esc(d.titulo || 'Sem título') + '</div><div class="doc-meta">' + esc(meta) + '</div></div></div>'
+      + '<div class="doc-actions">' + del + '</div></div>';
+  }).join('');
+  list.querySelectorAll('.doc-item').forEach(el => el.addEventListener('click', e => {
+    if (e.target.closest('[data-del]')) return;
+    abrirDoc(el.dataset.id);
+  }));
+  list.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', e => {
+    e.stopPropagation(); excluirDoc(b.dataset.del);
+  }));
+}
+
+// ── Abrir / criar / excluir ──
+function abrirDoc(id) {
+  const d = docs.find(x => x.id === id);
+  if (!d) return;
+  editingId = id; editingCriado = d.criado || Date.now();
+  carregarNoEditor(d);
+  showScreen('editor');
+}
+window.novaMecanica = function () {
+  if (!isMestre) return;
+  editingId = genId(); editingCriado = Date.now();
+  carregarNoEditor({ titulo: '', blocos: [{ tipo: 'texto', titulo: '', html: '' }] });
+  setSaveState('Novo — será salvo ao digitar');
+  showScreen('editor');
+  $('f_titulo').focus();
+};
+async function excluirDoc(id) {
+  if (!isMestre) return;
+  const d = docs.find(x => x.id === id);
+  if (!confirm('Excluir "' + ((d && d.titulo) || 'esta mecânica') + '"?')) return;
+  await remove(ref(db, 'mecanicas/' + id));
+  showToast('Excluída!');
+}
+window.voltarHome = async function () {
+  if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; await salvarDoc(true); }
+  editingId = null; lastEditor = null; lastRange = null;
+  showScreen('home'); renderHome();
+};
+
+// ── Editor: montar blocos ──
+function carregarNoEditor(d) {
+  $('f_titulo').value = d.titulo || '';
+  $('f_titulo').readOnly = !isMestre;
+  const cont = $('blocos'); cont.innerHTML = '';
+  listaBlocos(d).forEach(b => cont.appendChild(criarBloco(b)));
+  $('searchBlocos').value = '';
+  filtrarBlocos();
+  setSaveState('');
+}
+
+function filtrarBlocos() {
+  const termo = ($('searchBlocos').value || '').trim().toLocaleLowerCase('pt-BR');
+  document.querySelectorAll('#blocos .bloco').forEach(el => {
+    const titulo = (el.querySelector('.bloco-titulo') || {}).value || '';
+    const corpo = el.querySelector('.bloco-corpo');
+    const texto = titulo + ' ' + (corpo ? corpo.textContent : '');
+    el.style.display = texto.toLocaleLowerCase('pt-BR').includes(termo) ? '' : 'none';
+  });
+}
+
+function criarBloco(b) {
+  const tipo = b.tipo === 'caixa' ? 'caixa' : 'texto';
+  const el = document.createElement('div');
+  el.className = 'bloco bloco-' + tipo;
+  el.dataset.tipo = tipo;
+
+  const head = document.createElement('div');
+  head.className = 'bloco-head';
+  if (tipo === 'caixa') {
+    const t = document.createElement('input');
+    t.type = 'text'; t.className = 'bloco-titulo'; t.placeholder = 'Título da caixa';
+    t.value = b.titulo || ''; t.readOnly = !isMestre;
+    t.addEventListener('input', agendarAutosave);
+    head.appendChild(t);
+  } else {
+    const tag = document.createElement('span');
+    tag.className = 'bloco-tag'; tag.textContent = 'Texto';
+    head.appendChild(tag);
+  }
+  const ctrl = document.createElement('div');
+  ctrl.className = 'bloco-ctrl';
+  [['↑', 'Subir', () => mover(el, -1)], ['↓', 'Descer', () => mover(el, 1)], ['×', 'Excluir bloco', () => excluirBloco(el)]].forEach(([txt, title, fn]) => {
+    const btn = document.createElement('button');
+    btn.type = 'button'; btn.textContent = txt; btn.title = title;
+    if (txt === '×') btn.classList.add('btn-danger');
+    btn.addEventListener('click', fn);
+    ctrl.appendChild(btn);
+  });
+  head.appendChild(ctrl);
+
+  const corpo = document.createElement('div');
+  corpo.className = 'bloco-corpo';
+  corpo.dataset.ph = tipo === 'caixa' ? 'Escreva o conteúdo da caixa...' : 'Escreva o texto...';
+  corpo.innerHTML = b.html || '';
+  corpo.contentEditable = isMestre ? 'true' : 'false';
+  corpo.spellcheck = false;
+  corpo.addEventListener('input', agendarAutosave);
+  corpo.addEventListener('paste', e => {
+    e.preventDefault();
+    const txt = (e.clipboardData || window.clipboardData).getData('text/plain');
+    document.execCommand('insertText', false, txt);
+  });
+
+  el.append(head, corpo);
+  return el;
+}
+
+window.addBloco = function (tipo) {
+  if (!isMestre) return;
+  const el = criarBloco({ tipo, titulo: '', html: '' });
+  $('blocos').appendChild(el);
+  const alvo = el.querySelector('.bloco-titulo') || el.querySelector('.bloco-corpo');
+  alvo.focus();
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  agendarAutosave();
+};
+function mover(el, dir) {
+  const irmao = dir < 0 ? el.previousElementSibling : el.nextElementSibling;
+  if (!irmao) return;
+  if (dir < 0) el.parentNode.insertBefore(el, irmao);
+  else el.parentNode.insertBefore(irmao, el);
+  agendarAutosave();
+}
+function excluirBloco(el) {
+  const corpo = el.querySelector('.bloco-corpo');
+  const tem = (corpo.textContent || '').trim() || (el.querySelector('.bloco-titulo') && el.querySelector('.bloco-titulo').value.trim());
+  if (tem && !confirm('Excluir este bloco?')) return;
+  el.remove(); agendarAutosave();
+}
+
+// ── Formatação (mantém a seleção mesmo clicando na barra) ──
+let lastRange = null, lastEditor = null;
+document.addEventListener('selectionchange', () => {
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount) return;
+  const r = sel.getRangeAt(0);
+  const n = r.commonAncestorContainer;
+  const host = (n.nodeType === 1 ? n : n.parentElement);
+  const el = host && host.closest ? host.closest('.bloco-corpo') : null;
+  if (el && el.isContentEditable) { lastRange = r.cloneRange(); lastEditor = el; }
+});
+function prepararEdicao() {
+  if (!lastEditor || !document.body.contains(lastEditor)) return false;
+  if (document.activeElement !== lastEditor) lastEditor.focus();
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  if (lastRange) sel.addRange(lastRange);
+  return true;
+}
+window.fmt = function (cmd) {
+  if (!isMestre || !prepararEdicao()) { showToast('Clique dentro de um texto primeiro'); return; }
+  document.execCommand(cmd, false, null); agendarAutosave();
+};
+window.fmtBlock = function (tag) {
+  if (!isMestre || !prepararEdicao()) { showToast('Clique dentro de um texto primeiro'); return; }
+  document.execCommand('formatBlock', false, tag); agendarAutosave();
+};
+
+// ── Salvar (autosave + manual) ──
+function agendarAutosave() {
+  if (!isMestre || !editingId) return;
+  setSaveState('Editando...');
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => { saveTimer = null; salvarDoc(true); }, 1500);
+}
+$('f_titulo').addEventListener('input', agendarAutosave);
+
+function lerBlocos() {
+  return [...document.querySelectorAll('#blocos .bloco')].map(el => ({
+    tipo: el.dataset.tipo,
+    titulo: (el.querySelector('.bloco-titulo') || {}).value || '',
+    html: el.querySelector('.bloco-corpo').innerHTML
+  }));
+}
+async function salvarDoc(silencioso) {
+  if (!isMestre || !editingId) return;
+  const data = {
+    id: editingId,
+    titulo: $('f_titulo').value.trim() || 'Sem título',
+    criado: editingCriado,
+    atualizado: Date.now(),
+    blocos: lerBlocos()
+  };
+  try {
+    await set(ref(db, 'mecanicas/' + data.id), data);
+    setSaveState('Salvo ✓');
+    if (!silencioso) showToast('Salvo!');
+  } catch (e) {
+    setSaveState('Erro ao salvar');
+    showToast('Erro ao salvar. Tente de novo.');
+  }
+}
+window.salvarDoc = salvarDoc;
+
+$('searchMecanicas').addEventListener('input', e => {
+  termoBusca = e.target.value.trim();
+  renderHome();
+});
+$('searchBlocos').addEventListener('input', filtrarBlocos);
+
+// Importa as 496 caixas em uma única gravação no Firebase.
+// O JSON deve ficar na mesma pasta deste HTML no GitHub.
+async function importarMulticlasse(forcar = false) {
+  if (!isMestre) return;
+  if (window.SALA && window.SALA.classes === false) return; // só salas com o sistema de classes
+
+  const destino = ref(db, 'mecanicas/multiclasse');
+  const existente = await get(destino);
+  if (existente.exists() && !forcar) return;
+  if (existente.exists() && forcar && !confirm('Atualizar a mecânica Multiclasse com as 496 caixas do arquivo? O conteúdo atual dessa mecânica será substituído.')) return;
+
+  showToast('Importando 496 multiclasses...');
+  const resposta = await fetch('./multiclasse_mecanicas.json', { cache: 'no-store' });
+  if (!resposta.ok) {
+    throw new Error('Não foi possível carregar multiclasse_mecanicas.json (HTTP ' + resposta.status + ').');
+  }
+
+  const origem = await resposta.json();
+  const caixas = (Array.isArray(origem.blocos) ? origem.blocos : Object.values(origem.blocos || {}))
+    .filter(b => b && b.tipo === 'caixa' && b.titulo && b.html);
+
+  if (caixas.length !== 496) {
+    throw new Error('O arquivo deveria conter 496 caixas, mas foram encontradas ' + caixas.length + '.');
+  }
+
+  const agora = existente.exists() ? (existente.val().criado || Date.now()) : Date.now();
+  await set(destino, {
+    id: 'multiclasse',
+    titulo: 'Multiclasse',
+    criado: agora,
+    atualizado: Date.now(),
+    blocos: caixas
+  });
+
+  showToast('Multiclasse importada: 496 caixas!');
+}
+
+window.importarMulticlasseManual = async function () {
+  try {
+    await importarMulticlasse(true);
+  } catch (erro) {
+    console.error('Falha ao importar Multiclasse:', erro);
+    showToast('Falha na importação. Confira o JSON e o Console.');
+  }
+};
+
+renderHome();
+importarMulticlasse(false).catch(erro => {
+  console.error('Falha ao importar Multiclasse:', erro);
+  showToast('Não foi possível importar Multiclasse. Verifique o JSON.');
+});
+</script>
+</body>
+</html>
